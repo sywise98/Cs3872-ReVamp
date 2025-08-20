@@ -23,11 +23,11 @@
 #define startButtonPin 2
 #define startBtnLEDPin 3
 #define stopButtonPin 4
-#define stopBtnLEDPin 8
+#define stopBtnLEDPin 5
 #define syncButtonPin 6
 #define syncBtnLEDPin 7
-#define speakerPin1 5 //8
-#define leftwingPIN 10
+#define speakerPin1 10 //8
+#define leftwingPIN 9
 #define rightwingPIN 11
 
 const int volumePin = A0;
@@ -78,6 +78,10 @@ bool notePlaying = false;
 bool fly = true;
 bool playing = false;
 
+int minPos = 0;   // Try 0 for full left
+int maxPos = 45; // Try 180 for full right (adjust if mechanism binds)
+
+
 //setup the servo output
 Servo left_wing;
 Servo right_wing;
@@ -112,7 +116,7 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  vol.begin();
+  // vol.begin();
 
   Serial.begin(9600);
 }
@@ -125,16 +129,14 @@ void loop() {
 
   // Potentiometers 
   volumeValue = analogRead(volumePin);
-  outputVolumeValue = map(volumeValue, 0, 1023, 0, 255);
+  // outputVolumeValue = map(volumeValue, 0, 1023, 0, 255);
+  mv = constrain(analogRead(volumePin) / 10, 0, 100) / 100.00; 
 
   tempoValue = analogRead(tempoPin);
   outputTempoValue = map(tempoValue, 0, 1023, 0, 255);
 
   octaveValue = analogRead(octavePin);
   outputOctaveValue = map(octaveValue, 0, 1023, 0, 255);
-
-  mv = constrain(analogRead(speakerPin1) / 10, 0, 100) / 100.00; 
- 
 
   // Start button pressed
   if (startBtnState == LOW && !playing) {
@@ -187,7 +189,7 @@ void updateNote() {
   if (!notePlaying && now >= nextNoteTime) {
     // Start next note
     // tone(speakerPin1, melody[currentNote]);
-    vol.tone(melody[currentNote], 255 * mv);//vol.tone(pin, frequency, volume);
+    vol.tone(speakerPin1, melody[currentNote], 255 * mv);//vol.tone(pin, frequency, volume);
 
     notePlaying = true;
     nextNoteTime += beat[currentNote];
@@ -203,17 +205,20 @@ void updateNote() {
 
 void updateFlapping() {
   unsigned long now = millis();
+  // Serial.print("flapping \n");
   if (now >= nextFlapTime) {
     // Move the servos
     currentWingPos += currentFlapDir;
     left_wing.write(currentWingPos);
     right_wing.write(currentWingPos);
     // Reverse direction at limits
-    if (currentWingPos >= 45 || currentWingPos <= 0) {
+    if (currentWingPos >= maxPos || currentWingPos <= minPos) {
       currentFlapDir *= -1;
     }
     // Schedule next update
     nextFlapTime = now + 15;  // Controls flap speed
+    Serial.print(currentWingPos);
+    Serial.print("\n");
   }
 }
 
