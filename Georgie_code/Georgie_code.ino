@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <Wire.h>
+#include <Volume.h>
 
 //Notes and Beats
 #define NOTE_C4 262
@@ -22,10 +23,10 @@
 #define startButtonPin 2
 #define startBtnLEDPin 3
 #define stopButtonPin 4
-#define stopBtnLEDPin 5
+#define stopBtnLEDPin 8
 #define syncButtonPin 6
 #define syncBtnLEDPin 7
-#define speakerPin1 8
+#define speakerPin1 5 //8
 #define leftwingPIN 10
 #define rightwingPIN 11
 
@@ -46,13 +47,24 @@ int startBtnState;
 int stopBtnState;
 int syncBtnState;
 
+Volume vol;
 int volumeValue = 0;
 int outputVolumeValue = 0;
+unsigned long lastVolumeUpdate = 0;
+
 int tempoValue = 0;
 int outputTempoValue = 0;
+unsigned long lastToneUpdate = 0;
+
 int octaveValue = 0;
 int outputOctaveValue = 0;
+unsigned long lastOctaveUpdate = 0;
+
+int currentTone = 0;
+int isMute = 0;
+byte prevVol = 0;
 int pos;
+float mv = 0;
 
 
 // Global variables for timing
@@ -90,6 +102,7 @@ void setup() {
   // pinMode(syncButtonPin, INPUT_PULLUP);
   // pinMode(syncBtnLEDPin, OUTPUT);
 
+  pinMode(speakerPin1, OUTPUT);
   pinMode(volumePin, INPUT);
   pinMode(tempoPin, INPUT);
   pinMode(octavePin, INPUT);
@@ -98,6 +111,8 @@ void setup() {
   right_wing.attach(rightwingPIN);
 
   pinMode(LED_BUILTIN, OUTPUT);
+
+  vol.begin();
 
   Serial.begin(9600);
 }
@@ -117,6 +132,8 @@ void loop() {
 
   octaveValue = analogRead(octavePin);
   outputOctaveValue = map(octaveValue, 0, 1023, 0, 255);
+
+  mv = constrain(analogRead(speakerPin1) / 10, 0, 100) / 100.00; 
  
 
   // Start button pressed
@@ -138,7 +155,9 @@ void loop() {
   // Stop button pressed
   if (stopBtnState == LOW && playing) {
     playing = false;
-    noTone(speakerPin1);  // stop sound immediately
+    // stop sound immediately
+    vol.noTone(); 
+    //noTone(speakerPin1);  
     
     digitalWrite(startBtnLEDPin, LOW);
     digitalWrite(stopBtnLEDPin, HIGH);
@@ -158,7 +177,8 @@ void updateNote() {
   if (currentNote >= 27) {
     // Song is over, stop and reset
     playing = false;
-    noTone(speakerPin1);
+    vol.noTone(); 
+    // noTone(speakerPin1);
     digitalWrite(startBtnLEDPin, LOW);
     digitalWrite(stopBtnLEDPin, HIGH);
     digitalWrite(LED_BUILTIN, LOW);
@@ -166,12 +186,15 @@ void updateNote() {
   }
   if (!notePlaying && now >= nextNoteTime) {
     // Start next note
-    tone(speakerPin1, melody[currentNote]);
+    // tone(speakerPin1, melody[currentNote]);
+    vol.tone(melody[currentNote], 255 * mv);//vol.tone(pin, frequency, volume);
+
     notePlaying = true;
     nextNoteTime += beat[currentNote];
   } else if (notePlaying && now >= nextNoteTime) {
     // End current note, prepare for next
-    noTone(speakerPin1);
+    // noTone(speakerPin1);
+    vol.noTone(); 
     notePlaying = false;
     currentNote++;
     nextNoteTime += 20;  // Very brief delay between notes
@@ -193,3 +216,4 @@ void updateFlapping() {
     nextFlapTime = now + 15;  // Controls flap speed
   }
 }
+
