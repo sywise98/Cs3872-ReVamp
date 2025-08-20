@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <Wire.h>
-#include <Volume.h>
+#include "Volume3.h"
 
 //Notes and Beats
 #define NOTE_C4 262
