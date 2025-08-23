@@ -113,7 +113,7 @@ void loop() {
   outputVolumeValue = map(volumeValue, 0, 1023, 0, 255);
 
   tempoValue = analogRead(tempoPin);
-  outputTempoValue = map(tempoValue, 0, 1023, 30, 100) / 100.0;
+  outputTempoValue = map(tempoValue, 0, 1023, 400, 25) / 100.0;
 
   octaveValue = analogRead(octavePin);
   outputOctaveValue = map(octaveValue, 0, 1023, -2, 2);
@@ -167,9 +167,10 @@ void updateNote() {
   if (!notePlaying && now >= nextNoteTime) {
     // Start next note
     float newFreq = melody[currentNote] * pow(2, outputOctaveValue);
-    tone(speakerPin1, (int)newFreq, beat[currentNote]);
+    float newBeat = beat[currentNote] * outputTempoValue;
+    tone(speakerPin1, (int)newFreq, (int)newBeat);
     notePlaying = true;
-    nextNoteTime += beat[currentNote]; //* outputTempoValue;  // Apply tempo scaling
+    nextNoteTime += beat[currentNote] * outputTempoValue; //* outputTempoValue;  // Apply tempo scaling
   } else if (notePlaying && now >= nextNoteTime) {
     // End current note, prepare for next
     noTone(speakerPin1);
