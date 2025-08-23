@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <Wire.h>
-#include "Volume3.h"
 
 //Notes and Beats
 #define NOTE_C4 262
@@ -26,8 +25,8 @@
 #define stopBtnLEDPin 5
 #define syncButtonPin 6
 #define syncBtnLEDPin 7
-#define speakerPin1 10 //8
-#define leftwingPIN 9
+#define speakerPin1 8
+#define leftwingPIN 10
 #define rightwingPIN 11
 
 const int volumePin = A0;
@@ -47,24 +46,13 @@ int startBtnState;
 int stopBtnState;
 int syncBtnState;
 
-Volume vol;
 int volumeValue = 0;
 int outputVolumeValue = 0;
-unsigned long lastVolumeUpdate = 0;
-
 int tempoValue = 0;
 int outputTempoValue = 0;
-unsigned long lastToneUpdate = 0;
-
 int octaveValue = 0;
 int outputOctaveValue = 0;
-unsigned long lastOctaveUpdate = 0;
-
-int currentTone = 0;
-int isMute = 0;
-byte prevVol = 0;
 int pos;
-float mv = 0;
 
 
 // Global variables for timing
@@ -77,10 +65,6 @@ int currentNote = 0;
 bool notePlaying = false;
 bool fly = true;
 bool playing = false;
-
-int minPos = 0;   // Try 0 for full left
-int maxPos = 45; // Try 180 for full right (adjust if mechanism binds)
-
 
 //setup the servo output
 Servo left_wing;
@@ -106,7 +90,6 @@ void setup() {
   // pinMode(syncButtonPin, INPUT_PULLUP);
   // pinMode(syncBtnLEDPin, OUTPUT);
 
-  pinMode(speakerPin1, OUTPUT);
   pinMode(volumePin, INPUT);
   pinMode(tempoPin, INPUT);
   pinMode(octavePin, INPUT);
@@ -115,8 +98,6 @@ void setup() {
   right_wing.attach(rightwingPIN);
 
   pinMode(LED_BUILTIN, OUTPUT);
-
-  // vol.begin();
 
   Serial.begin(9600);
 }
@@ -129,14 +110,14 @@ void loop() {
 
   // Potentiometers 
   volumeValue = analogRead(volumePin);
-  // outputVolumeValue = map(volumeValue, 0, 1023, 0, 255);
-  mv = constrain(analogRead(volumePin) / 10, 0, 100) / 100.00; 
+  outputVolumeValue = map(volumeValue, 0, 1023, 0, 255);
 
   tempoValue = analogRead(tempoPin);
-  outputTempoValue = map(tempoValue, 0, 1023, 0, 255);
+  outputTempoValue = map(tempoValue, 0, 1023, 30, 100) / 100.0;
 
   octaveValue = analogRead(octavePin);
-  outputOctaveValue = map(octaveValue, 0, 1023, 0, 255);
+  outputOctaveValue = map(octaveValue, 0, 1023, -2, 2);
+ 
 
   // Start button pressed
   if (startBtnState == LOW && !playing) {
@@ -157,9 +138,7 @@ void loop() {
   // Stop button pressed
   if (stopBtnState == LOW && playing) {
     playing = false;
-    // stop sound immediately
-    vol.noTone(); 
-    //noTone(speakerPin1);  
+    noTone(speakerPin1);  // stop sound immediately
     
     digitalWrite(startBtnLEDPin, LOW);
     digitalWrite(stopBtnLEDPin, HIGH);
@@ -179,8 +158,7 @@ void updateNote() {
   if (currentNote >= 27) {
     // Song is over, stop and reset
     playing = false;
-    vol.noTone(); 
-    // noTone(speakerPin1);
+    noTone(speakerPin1);
     digitalWrite(startBtnLEDPin, LOW);
     digitalWrite(stopBtnLEDPin, HIGH);
     digitalWrite(LED_BUILTIN, LOW);
@@ -188,15 +166,12 @@ void updateNote() {
   }
   if (!notePlaying && now >= nextNoteTime) {
     // Start next note
-    // tone(speakerPin1, melody[currentNote]);
-    vol.tone(speakerPin1, melody[currentNote], 255 * mv);//vol.tone(pin, frequency, volume);
-
+    tone(speakerPin1, melody[currentNote]);
     notePlaying = true;
-    nextNoteTime += beat[currentNote];
+    nextNoteTime += beat[currentNote]; //* outputTempoValue;  // Apply tempo scaling
   } else if (notePlaying && now >= nextNoteTime) {
     // End current note, prepare for next
-    // noTone(speakerPin1);
-    vol.noTone(); 
+    noTone(speakerPin1);
     notePlaying = false;
     currentNote++;
     nextNoteTime += 20;  // Very brief delay between notes
@@ -205,20 +180,16 @@ void updateNote() {
 
 void updateFlapping() {
   unsigned long now = millis();
-  // Serial.print("flapping \n");
   if (now >= nextFlapTime) {
     // Move the servos
     currentWingPos += currentFlapDir;
     left_wing.write(currentWingPos);
     right_wing.write(currentWingPos);
     // Reverse direction at limits
-    if (currentWingPos >= maxPos || currentWingPos <= minPos) {
+    if (currentWingPos >= 45 || currentWingPos <= 0) {
       currentFlapDir *= -1;
     }
     // Schedule next update
     nextFlapTime = now + 15;  // Controls flap speed
-    Serial.print(currentWingPos);
-    Serial.print("\n");
   }
 }
-
