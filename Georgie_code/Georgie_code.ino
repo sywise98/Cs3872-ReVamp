@@ -166,7 +166,8 @@ void updateNote() {
   }
   if (!notePlaying && now >= nextNoteTime) {
     // Start next note
-    tone(speakerPin1, melody[currentNote]);
+    float newFreq = melody[currentNote] * pow(2, outputOctaveValue);
+    tone(speakerPin1, (int)newFreq, beat[currentNote]);
     notePlaying = true;
     nextNoteTime += beat[currentNote]; //* outputTempoValue;  // Apply tempo scaling
   } else if (notePlaying && now >= nextNoteTime) {
